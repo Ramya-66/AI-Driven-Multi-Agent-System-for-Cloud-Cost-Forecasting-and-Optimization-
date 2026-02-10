@@ -1,0 +1,52 @@
+for service in services:
+    # 1. Prepare service-wise time series data
+    service_df = (
+        df[df["service"] == service]
+        .groupby("date")["cost_usd"]
+        .sum()
+        .reset_index()
+    )
+
+    service_df.rename(columns={"date": "ds", "cost_usd": "y"}, inplace=True)
+    service_df = service_df.sort_values("ds")  # IMPORTANT
+
+    # 2. Train–test split (time-aware)
+    train, test = time_series_split(service_df)
+
+    # 3. Train forecasting model
+    model = Prophet(daily_seasonality=True)
+    model.fit(train)
+
+    # 4. Forecast for test period
+    future = model.make_future_dataframe(periods=len(test))
+    forecast = model.predict(future)
+
+    # 5. Extract predictions & actual values
+    predicted = forecast.tail(len(test))["yhat"].values
+    actual = test["y"].values
+    dates = test["ds"].values
+
+    # 6. Calculate accuracy metrics
+    mae, rmse, mape = accuracy_metrics(actual, predicted)
+
+    results.append({
+        "Service": service,
+        "MAE": round(mae, 2),
+        "RMSE": round(rmse, 2),
+        "MAPE (%)": round(mape, 2)
+    })
+
+    # 7. Plot Actual vs Predicted
+    plt.figure(figsize=(10, 5))
+    plt.plot(dates, actual, label="Actual Cost", marker="o")
+    plt.plot(dates, predicted, label="Predicted Cost", linestyle="--")
+    plt.title(f"Actual vs Predicted Cost – {service}")
+    plt.xlabel("Date")
+    plt.ylabel("Cost (USD)")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    plot_path = os.path.join(PLOT_DIR, f"{service}_actual_vs_predicted.png")
+    plt.savefig(plot_path)
+    plt.close()
