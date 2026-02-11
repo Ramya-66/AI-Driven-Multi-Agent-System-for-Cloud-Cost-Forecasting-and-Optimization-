@@ -209,3 +209,7 @@ st.success(results["budget_status"])
 - Matplotlib / Plotly
 
 - Multi-agent modular architecture
+
+## 👩🏻‍💼 Author 
+**Ramya Srinivasan**  
+
